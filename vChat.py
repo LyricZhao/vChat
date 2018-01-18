@@ -4,13 +4,35 @@ import wx
 
 version = "1.0"
 
+class User: # User Setting
+
+    def __init__(self, id, username, nickname, pw):
+        self.id = id
+        self.username = username
+        self.nickname = nickname
+
 class Func: # Functions
     pass
 
 class MainWindow(wx.Frame):
 
-    def connect(self, event): # id = 2300, connect of GUI layer
+    def throw_message_box(self, title = '', msg = ''):
+        dlg = wx.MessageDialog(self, msg, title)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def test_connection(self, serverIP):
         pass
+
+    def login(self, serverIP):
+        pass
+
+    def connect(self, event): # id = 2300, connect of GUI layer
+        serverIP = self.server_address.GetValue()
+        if self.test_connection(serverIP) == False:
+            self.throw_message_box("Unable to connect to %s" % serverIP)
+        else:
+            self.login(serverIP)
 
     def disconnect(self, event): # id = 2301, diconnect of GUI layer
         pass
@@ -19,11 +41,7 @@ class MainWindow(wx.Frame):
         self.chat_context.SetValue('')
 
     def about(self, event): # id = 2500, about of GUI layer
-    
-        about_dialog = wx.MessageDialog(self, "@ vChat by Lyric Zhao, 2018.01", "vChat %s" % version)
-        about_dialog.ShowModal()
-        about_dialog.Destroy()
-        pass
+        self.throw_message_box("vChat %s" % version, "@ vChat by Lyric Zhao, 2018.01")
 
     def send(self, event):
         pass
