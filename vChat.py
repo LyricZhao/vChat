@@ -1,8 +1,14 @@
 # @ vChat by Lyric, 2018.01
 
 import wx
+import socket
 
 version = "1.0"
+
+default_server = "45.77.121.14"
+default_port = 12333
+
+default_timeout = 4
 
 class User: # User Setting
 
@@ -14,23 +20,56 @@ class User: # User Setting
 class Func: # Functions
     pass
 
+class network: # network layer
+
+    current_connection = None
+
+    def build_connection(self, serverIP): # test the connection with an IP address
+        socket.setdefaulttimeout(default_timeout)
+        self.current_connection = socket.socket()
+        flag = True
+        try:
+            self.current_connection.connect(serverIP)
+        except socket.timeout:
+            flag = False
+        return flag
+
 class MainWindow(wx.Frame):
+
+    server_connect = None # network
+
+    connectButton = None # button
+    disconnectButton = None # button
+    sendButton = None # Button
+
+    statusbar = None # Statusbar
+
+    menu_item_connect = None # Menu Item
+    menu_item_disconnect = None # Menu Item
+    menu_item_ccc = None # Menu Item
+    menu_item_about = None # Menu Item
 
     def throw_message_box(self, title = '', msg = ''):
         dlg = wx.MessageDialog(self, msg, title)
         dlg.ShowModal()
         dlg.Destroy()
 
-    def test_connection(self, serverIP):
-        pass
-
     def login(self, serverIP):
         pass
 
+    def getIP(self):
+        serverIP_str = self.server_address.GetValue()
+        serverIP = serverIP_str.split(':')
+        if len(serverIP) == 1:
+            serverIP.append(default_port)
+        return (serverIP[0], int(serverIP[1]))
+
     def connect(self, event): # id = 2300, connect of GUI layer
-        serverIP = self.server_address.GetValue()
-        if self.test_connection(serverIP) == False:
-            self.throw_message_box("Unable to connect to %s" % serverIP)
+        serverIP = self.getIP()
+        self.statusbar.SetStatusText('Connecting to %s:%d' % serverIP)
+        self.server_connect = network()
+        if self.server_connect.build_connection(serverIP) == False:
+            self.throw_message_box("Unable to connect to %s:%d" % serverIP)
         else:
             self.login(serverIP)
 
@@ -85,7 +124,7 @@ class MainWindow(wx.Frame):
 
         # hbox_server
         self.server_address = wx.TextCtrl(bkg)
-        self.server_address.SetValue("45.77.121.14:12333")
+        self.server_address.SetValue(default_server + (":%s" % default_port))
         self.connectButton = wx.Button(bkg, label = "Connect")
         self.disconnectButton = wx.Button(bkg, label = "Disconnect")
 
@@ -119,7 +158,7 @@ class MainWindow(wx.Frame):
         wx.Frame.__init__(self, parent, title = title, size = size)
 
         # Components
-        self.CreateStatusBar()
+        self.statusbar = self.CreateStatusBar()
         self.myCreateMenu()
         self.myCreatePanel()
         self.FunctionLinker()
