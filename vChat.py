@@ -1,4 +1,5 @@
 # @ vChat by Lyric, 2018.01
+# It's the code of chatting client
 
 import wx
 import socket
@@ -129,7 +130,7 @@ class MainWindow(wx.Frame):
         self.statusbar.SetStatusText('Connecting to %s:%d' % serverIP)
         self.server_connect = network()
         if self.server_connect.build_connection(serverIP) == False:
-            self.throw_message_box("Unable to connect to %s:%d" % serverIP)
+            self.throw_message_box("Unable to connect to %s:%d or it is not a standard chatting server." % serverIP)
         else:
             self.login(serverIP)
 
@@ -229,4 +230,7 @@ class MainWindow(wx.Frame):
 if __name__ == "__main__": # main
     app = wx.App(False)
     frame = MainWindow(None, "vChat", size = (500, 400))
-    app.MainLoop()
+    try:
+        app.MainLoop()
+    except KeyboardInterrupt:
+        print
