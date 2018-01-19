@@ -5,10 +5,14 @@ import socket
 
 version = "1.0"
 
-default_server = "45.77.121.14"
-default_port = 12333
+default_server = "www.baidu.com"
+default_port = 80
 
 default_timeout = 4
+
+def debug_loop():
+    while True:
+        pass
 
 class User: # User Setting
 
@@ -34,6 +38,60 @@ class network: # network layer
             flag = False
         return flag
 
+class login_dialog(wx.Dialog): # the login dialog
+
+    ID_StaticText = None
+    ID_Text = None
+
+    PW_StaticText = None
+    PW_Text = None
+
+    login_Button = None
+    cancel_Button = None
+
+    def __init__(self, *args, **kw):
+        super(login_dialog, self).__init__(*args, **kw)
+        self.myCreatePanel()
+        self.SetSize((250, 100))
+        self.SetTitle("Login or Register")
+
+    def myCreatePanel(self):
+
+        bkg = wx.Panel(self)
+
+        # StaticTexts
+        self.ID_StaticText = wx.StaticText(bkg, label = 'Username')
+        self.PW_StaticText = wx.StaticText(bkg, label = 'Password')
+        vbox_static = wx.BoxSizer(wx.VERTICAL)
+        vbox_static.Add(self.ID_StaticText, proportion = 0, flag = wx.EXPAND | wx.UP, border = 3)
+        vbox_static.Add(self.PW_StaticText, proportion = 0, flag = wx.EXPAND | wx.UP, border = 5)
+
+        # TextBox
+        self.ID_Text = wx.TextCtrl(bkg)
+        self.PW_Text = wx.TextCtrl(bkg, style = wx.TE_PASSWORD)
+        vbox_text = wx.BoxSizer(wx.VERTICAL)
+        vbox_text.Add(self.ID_Text, proportion = 0, flag = wx.EXPAND, border = 5)
+        vbox_text.Add(self.PW_Text, proportion = 0, flag = wx.EXPAND, border = 5)
+
+        # infoBox
+        hbox_info = wx.BoxSizer()
+        hbox_info.Add(vbox_static, proportion = 0, flag = wx.EXPAND, border = 5)
+        hbox_info.Add(vbox_text, proportion = 1, flag = wx.EXPAND, border = 5)
+
+        # Login Button
+        self.login_Button = wx.Button(bkg, label = "Login")
+        self.cancel_Button = wx.Button(bkg, label = "Cancel")
+        hbox_button = wx.BoxSizer()
+        hbox_button.Add(self.login_Button, proportion = 1, flag = wx.EXPAND, border = 5)
+        hbox_button.Add(self.cancel_Button, proportion = 1, flag = wx.EXPAND, border = 5)
+
+        # VBox
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        vbox.Add(hbox_info, proportion = 1, flag = wx.EXPAND, border = 5)
+        vbox.Add(hbox_button, proportion = 1, flag = wx.EXPAND, border = 5)
+
+        bkg.SetSizer(vbox)
+
 class MainWindow(wx.Frame):
 
     server_connect = None # network
@@ -55,7 +113,9 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def login(self, serverIP):
-        pass
+        login_dlg = login_dialog(None, title = "Login or Register")
+        login_dlg.ShowModal()
+        login_dlg.Destroy()
 
     def getIP(self):
         serverIP_str = self.server_address.GetValue()
