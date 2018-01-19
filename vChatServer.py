@@ -11,30 +11,72 @@ import asyncore
 server_port = 12333
 server_name = 'vChat'
 
-class endSession(Expection):
-    pass
+class EndSession(Expection): pass
+class UnknownError(Expection): pass
 
-class Room: # a chatting room
+class commandHandler:
+
+    def handle(self, session, line): # handle a command received from a session
+        if not line:
+            return
+        parts = line.split('', 1)
+        instruction = parts[0]
+        if len(parts) > 1:
+            line = parts[1]
+        else:
+            line = ''
+        if instruction == 'login': # login
+            self.m_login(session, line)
+        elif instruction == 'logout': # logout
+            self.m_logout()
+        elif instruction == 'say': # say
+            self.m_say(session, line)
+        else: # unknown command
+            raise UnknownError
+
+class Room(commandHandler): # a chatting room
 
     server = None
     sessions = None
+    database = None
+    name = None
 
-    def __init__(self, server): # initialization
+    def __init__(self, server, name = 'vChat'): # initialization
         self.server = server
         self.sessions = []
+        self.database = {}
+        self.name = name
 
-    def add(self, user): # add an user to the room
-        self.sessions.append(user)
+    def check_in_db(self, line):
+        parts = line.split(' ', 1)
+        username = parts[0]
+        password = parts[1]
+        if not self.database.has_key(username):
+            self.database[username] = password
+        return (self.database[username] == password)
 
-    def remove(self, user): # remove an user from a room
-        self.sessions.remove(user)
+    def add(self, session): # add an user to the room
+        self.sessions.append(session)
+
+    def remove(self, session): # remove an user from a room
+        self.sessions.remove(session)
 
     def broadcast(self, line): # send a message to everyone
-        for user in self.sessions:
-            user.push(line)
+        for session in self.sessions:
+            session.push("message " + line)
+
+    def m_logout(self, line): # logout
+        raise EndSession
 
 class loginRoom(Room):
-    pass
+
+    def m_login(self, session, line):
+        if self.server.main_room.check_in_db(line) == True:
+            session.push("message " + ("Welcome to %s" % self.name))
+            session.enter(self.server.main_room)
+        else:
+            session.push("error login")
+            raise EndSession
 
 class chatSession(asynchat): # communicate with a single user
 
@@ -63,9 +105,17 @@ class chatSession(asynchat): # communicate with a single user
 
     def found_terminator(self):
         line = ''.join(self.data)
-        
+        self.data = []
+        try:
+            self.room.handle(self, line)
+        except:
+            self.handle_close()
 
-class ClassServer(dispatcher):
+    def close(self):
+        async_chat.close(self)
+        self.room.remove(self)
+
+class ChatServer(dispatcher):
 
     def __init__(self, port, name):
         dispatcher.__init__(self)
