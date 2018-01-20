@@ -21,7 +21,8 @@ def debug_loop():
 class commandHandler:
 
     def handle(self, session, line): # handle a command received from a session
-        print "got request: " + line
+        if line != "test":
+            print "got request: " + line
         if not line:
             return
         parts = line.split(' ', 1)
@@ -30,7 +31,9 @@ class commandHandler:
             line = parts[1]
         else:
             line = ''
-        if instruction == 'login': # login
+        if instruction == 'test': # test connection
+            pass
+        elif instruction == 'login': # login
             self.m_login(session, line)
         elif instruction == 'logout': # logout
             self.m_logout()
@@ -73,11 +76,15 @@ class Room(commandHandler): # a chatting room
     def m_say(self, session, line): # say something
         self.broadcast(session.name + " " + line)
 
-    def broadcast(self, line): # send a message to everyone
+    def broadcast(self, line, flag = False): # send a message to everyone
         if not len(self.sessions):
             return
-        for session in self.sessions:
-            session.push("message " + line + "\r\n")
+        if flag:
+            for session in self.sessions:
+                session.push(line + "\r\n")
+        else:
+            for session in self.sessions:
+                session.push("message " + line + "\r\n")
 
     def m_logout(self): # logout
         raise EndSession
@@ -89,9 +96,9 @@ class loginRoom(Room):
         if self.server.main_room.check_in_db(line) == True:
             print("ok login")
             session.push("ok login" + "\r\n")
-            session.push("message " + ("Welcome to %s" % self.server.main_room.name) + "\r\n")
+            session.push("sys_message " + ("Welcome to %s" % self.server.main_room.name) + "\r\n")
             session.push_all(self.server.main_room.sessions)
-            self.server.main_room.broadcast("sys_message " + session.name + " joins the chat.")
+            self.server.main_room.broadcast("sys_message " + session.name + " joins the chat.", True)
             session.enter(self.server.main_room)
         else:
             print("error login")
@@ -122,9 +129,9 @@ class chatSession(async_chat): # communicate with a single user
             for session in sarr:
                 arr.append(session.name)
             users = ", ".join(arr)
-            self.push("sys_message " + "online users in this room: " + users + "\r\n")
+            self.push("sys_message " + "Current online users in this room: " + users + "\r\n")
         else:
-            self.push("sys_message " + "nobody online now" + "\r\n")
+            self.push("sys_message " + "Nobody online now" + "\r\n")
 
     def enter(self, room): # remove and put in a new room
         cur = self.room
@@ -152,7 +159,7 @@ class chatSession(async_chat): # communicate with a single user
         tmp = self.room
         tmp.remove(self)
         if self.name != None:
-            tmp.broadcast("sys_message " + self.name + " leaves the chat.")
+            tmp.broadcast("sys_message " + self.name + " leaves the chat.", 1)
 
 class ChatServer(dispatcher):
 

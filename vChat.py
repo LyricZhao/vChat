@@ -59,8 +59,9 @@ class network: # network layer
             info = ""
         return info
 
-    def close_connection(self):
-        self.send_msg("logout")
+    def close_connection(self, flag = False):
+        if flag:
+            self.send_msg("logout")
         self.cc.close()
 
 class login_dialog(wx.Dialog): # the login dialog
@@ -169,6 +170,32 @@ class MainWindow(wx.Frame):
     menu_item_ccc = None # Menu Item
     menu_item_about = None # Menu Item
 
+    server_address = None # textctrl
+    chat_context = None # textctrl
+    send_context = None # textctrl
+
+    def ccAppend(self, context):
+        self.chat_context.AppendText(context)
+
+    def data_recv(self):
+        while True:
+            time.sleep(0.3)
+            try:
+                self.nc.send_msg("test")
+            except socket.error:
+                self.login_ok = False
+                self.nc.close_connection(False)
+                self.statusbar.SetStatusText('Disconnected')
+                return
+            try:
+                msg = self.nc.read()
+                if msg != "":
+                    self.ccAppend(msg)
+            except socket.error:
+                self.login_ok = False
+                self.nc.close_connection(False)
+                self.statusbar.SetStatusText('Disconnected')
+                return
 
     def login(self, serverIP):
         login_dlg = login_dialog(None, title = "Login or Register")
@@ -178,7 +205,9 @@ class MainWindow(wx.Frame):
 
         self.login_ok = login_dlg.login_ok
         self.nc = login_dlg.nc
-        self.statusbar.SetStatusText('Connected')
+        if self.login_ok:
+            self.statusbar.SetStatusText('Connected')
+            thread.start_new_thread(self.data_recv, ())
 
     def getIP(self):
         serverIP_str = self.server_address.GetValue()
@@ -188,6 +217,9 @@ class MainWindow(wx.Frame):
         return (serverIP[0], int(serverIP[1]))
 
     def connect(self, event): # id = 2300, connect of GUI layer
+        if self.login_ok:
+            throw_message_box(self, "Error", "You have already logged in a server.")
+            return
         serverIP = self.getIP()
         self.statusbar.SetStatusText('Connecting to %s:%d' % serverIP)
         self.server_connect = network()
@@ -206,7 +238,12 @@ class MainWindow(wx.Frame):
         self.throw_message_box("vChat %s" % version, "@ vChat by Lyric Zhao, 2018.01")
 
     def send(self, event):
-        pass
+        send_str = str(self.send_context.GetValue())
+        if (not len(send_str)) or (not self.login_ok):
+            return
+        self.nc.send_msg("say " + send_str)
+        self.send_context.SetValue("")
+        self.statusbar.SetStatusText("You said something just now")
 
     def FunctionLinker(self):
 
