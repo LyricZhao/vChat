@@ -9,7 +9,7 @@ import telnetlib
 
 version = "1.0"
 
-default_server = "localhost"
+default_server = "45.77.42.36"
 default_port = 12333
 
 default_timeout = 4
@@ -28,6 +28,21 @@ def ck_un(username):
 
 def ck_pw(password):
     return len(password) > 0
+
+def lstC(text, username):
+    arr = text.split(' ', 1)
+    text_type = arr[0]
+    context = arr[1]
+    context = context.strip("\r\n")
+    if text_type == "sys_message":
+        return "[System]: " + context + "\n"
+    elif text_type == "message":
+        arr = context.split(' ', 1)
+        usr = arr[0]
+        context = arr[1]
+        if username == usr:
+            usr += '(Me)'
+        return "[%s]: %s\n" % (usr, context)
 
 class network: # network layer
 
@@ -67,6 +82,7 @@ class network: # network layer
 class login_dialog(wx.Dialog): # the login dialog
 
     nc = None # network
+    username = None # info
 
     upperIP = None # incoming ip address
     login_ok = False # status
@@ -105,6 +121,7 @@ class login_dialog(wx.Dialog): # the login dialog
         if not flag:
             throw_message_box(self, "Error", "Unable to connect to the server.")
         else:
+            self.username = username
             self.nc.send_msg("login " + username + ' ' + password)
             login_feedback = self.nc.read_ow()
             if login_feedback == "ok login\r\n":
@@ -156,6 +173,7 @@ class login_dialog(wx.Dialog): # the login dialog
 class MainWindow(wx.Frame):
 
     login_ok = False # status
+    username = None # info
 
     nc = None # network
 
@@ -175,10 +193,11 @@ class MainWindow(wx.Frame):
     send_context = None # textctrl
 
     def ccAppend(self, context):
-        self.chat_context.AppendText(context)
+        self.chat_context.AppendText(lstC(context, self.username))
 
     def data_recv(self):
         while True:
+            '''
             time.sleep(0.3)
             try:
                 self.nc.send_msg("test")
@@ -187,11 +206,12 @@ class MainWindow(wx.Frame):
                 self.nc.close_connection(False)
                 self.statusbar.SetStatusText('Disconnected')
                 return
+            '''
             try:
-                msg = self.nc.read()
+                msg = self.nc.read_ow()
                 if msg != "":
                     self.ccAppend(msg)
-            except socket.error:
+            except:
                 self.login_ok = False
                 self.nc.close_connection(False)
                 self.statusbar.SetStatusText('Disconnected')
@@ -205,6 +225,7 @@ class MainWindow(wx.Frame):
 
         self.login_ok = login_dlg.login_ok
         self.nc = login_dlg.nc
+        self.username = login_dlg.username
         if self.login_ok:
             self.statusbar.SetStatusText('Connected')
             thread.start_new_thread(self.data_recv, ())
@@ -294,7 +315,7 @@ class MainWindow(wx.Frame):
         hbox_server.Add(self.disconnectButton, proportion = 0, flag = wx.LEFT, border = 5)
 
         # chat_context
-        self.chat_context = wx.TextCtrl(bkg, style = wx.TE_MULTILINE | wx.HSCROLL)
+        self.chat_context = wx.TextCtrl(bkg, style = wx.TE_MULTILINE | wx.HSCROLL | wx.TE_RICH)
 
         # hbox_send
         self.send_context = wx.TextCtrl(bkg)
