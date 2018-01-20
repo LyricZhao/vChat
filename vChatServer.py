@@ -87,11 +87,14 @@ class loginRoom(Room):
     def m_login(self, session, line):
         session.name = (line.split(' '))[0]
         if self.server.main_room.check_in_db(line) == True:
+            print("ok login")
+            session.push("ok login" + "\r\n")
             session.push("message " + ("Welcome to %s" % self.server.main_room.name) + "\r\n")
             session.push_all(self.server.main_room.sessions)
             self.server.main_room.broadcast("sys_message " + session.name + " joins the chat.")
             session.enter(self.server.main_room)
         else:
+            print("error login")
             session.push("error login" + "\r\n")
             raise EndSession
 
@@ -103,6 +106,8 @@ class chatSession(async_chat): # communicate with a single user
     name = None
 
     def __init__(self, server, sock):
+
+        print("coming connection")
 
         async_chat.__init__(self, sock)
         self.server = server
@@ -143,9 +148,11 @@ class chatSession(async_chat): # communicate with a single user
 
     def handle_close(self):
         async_chat.close(self)
+        print "Connection is interrupted"
         tmp = self.room
-        self.room.remove(self)
-        tmp.broadcast("sys_message " + self.name + " leaves the chat.")
+        tmp.remove(self)
+        if self.name != None:
+            tmp.broadcast("sys_message " + self.name + " leaves the chat.")
 
 class ChatServer(dispatcher):
 

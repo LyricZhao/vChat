@@ -2,12 +2,15 @@
 # It's the code of chatting client
 
 import wx
+import time
 import socket
+import thread
+import telnetlib
 
 version = "1.0"
 
-default_server = "www.baidu.com"
-default_port = 80
+default_server = "localhost"
+default_port = 12333
 
 default_timeout = 4
 
@@ -15,46 +18,102 @@ def debug_loop():
     while True:
         pass
 
-class User: # User Setting
+def throw_message_box(wd, title = '', msg = ''):
+    dlg = wx.MessageDialog(wd, msg, title)
+    dlg.ShowModal()
+    dlg.Destroy()
 
-    def __init__(self, id, username, nickname, pw):
-        self.id = id
-        self.username = username
-        self.nickname = nickname
+def ck_un(username):
+    return len(username) > 0 and (not ' ' in username)
 
-class Func: # Functions
-    pass
+def ck_pw(password):
+    return len(password) > 0
 
 class network: # network layer
 
-    current_connection = None
+    cc = None
 
     def build_connection(self, serverIP): # test the connection with an IP address
-        socket.setdefaulttimeout(default_timeout)
-        self.current_connection = socket.socket()
+        self.cc = telnetlib.Telnet()
         flag = True
         try:
-            self.current_connection.connect(serverIP)
-        except socket.timeout:
+            self.cc.open(serverIP[0], serverIP[1], default_timeout)
+        except socket.error:
             flag = False
         return flag
 
+    def send_msg(self, command):
+        self.cc.write(str(command) + "\r\n")
+
+    def read(self):
+        try:
+            info = self.cc.read_eager()
+        except EOFError:
+            info = ""
+        return info
+
+    def read_ow(self):
+        try:
+            info = self.cc.read_until("\r\n")
+        except EOFError:
+            info = ""
+        return info
+
+    def close_connection(self):
+        self.send_msg("logout")
+        self.cc.close()
+
 class login_dialog(wx.Dialog): # the login dialog
 
-    ID_StaticText = None
-    ID_Text = None
+    nc = None # network
 
-    PW_StaticText = None
-    PW_Text = None
+    upperIP = None # incoming ip address
+    login_ok = False # status
 
-    login_Button = None
-    cancel_Button = None
+    ID_StaticText = None # StaticText
+    ID_Text = None # Text
+
+    PW_StaticText = None # StaticText
+    PW_Text = None # Text
+
+    loginButton = None # Button
+    cancelButton = None # Button
 
     def __init__(self, *args, **kw):
         super(login_dialog, self).__init__(*args, **kw)
         self.myCreatePanel()
+        self.FunctionLinker()
         self.SetSize((250, 100))
         self.SetTitle("Login or Register")
+
+    def FunctionLinker(self):
+        self.loginButton.Bind(wx.EVT_BUTTON, self.on_login)
+        self.cancelButton.Bind(wx.EVT_BUTTON, self.on_cancel)
+
+    def on_login(self, event):
+        username = self.ID_Text.GetValue()
+        password = self.PW_Text.GetValue()
+
+        if (not ck_un(username)) or (not ck_pw(password)):
+            throw_message_box(self, "Error", "Illegal username or password.")
+            return
+
+        self.nc = network()
+        flag = self.nc.build_connection(self.upperIP)
+
+        if not flag:
+            throw_message_box(self, "Error", "Unable to connect to the server.")
+        else:
+            self.nc.send_msg("login " + username + ' ' + password)
+            login_feedback = self.nc.read_ow()
+            if login_feedback == "ok login\r\n":
+                self.login_ok = True
+                self.Close()
+            else:
+                throw_message_box(self, "Error", "Wrong username or password.")
+
+    def on_cancel(self, event):
+        self.Close()
 
     def myCreatePanel(self):
 
@@ -80,11 +139,11 @@ class login_dialog(wx.Dialog): # the login dialog
         hbox_info.Add(vbox_text, proportion = 1, flag = wx.EXPAND, border = 5)
 
         # Login Button
-        self.login_Button = wx.Button(bkg, label = "Login")
-        self.cancel_Button = wx.Button(bkg, label = "Cancel")
+        self.loginButton = wx.Button(bkg, label = "Login")
+        self.cancelButton = wx.Button(bkg, label = "Cancel")
         hbox_button = wx.BoxSizer()
-        hbox_button.Add(self.login_Button, proportion = 1, flag = wx.EXPAND, border = 5)
-        hbox_button.Add(self.cancel_Button, proportion = 1, flag = wx.EXPAND, border = 5)
+        hbox_button.Add(self.loginButton, proportion = 1, flag = wx.EXPAND, border = 5)
+        hbox_button.Add(self.cancelButton, proportion = 1, flag = wx.EXPAND, border = 5)
 
         # VBox
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -95,7 +154,9 @@ class login_dialog(wx.Dialog): # the login dialog
 
 class MainWindow(wx.Frame):
 
-    server_connect = None # network
+    login_ok = False # status
+
+    nc = None # network
 
     connectButton = None # button
     disconnectButton = None # button
@@ -108,15 +169,16 @@ class MainWindow(wx.Frame):
     menu_item_ccc = None # Menu Item
     menu_item_about = None # Menu Item
 
-    def throw_message_box(self, title = '', msg = ''):
-        dlg = wx.MessageDialog(self, msg, title)
-        dlg.ShowModal()
-        dlg.Destroy()
 
     def login(self, serverIP):
         login_dlg = login_dialog(None, title = "Login or Register")
+        login_dlg.upperIP = serverIP
         login_dlg.ShowModal()
         login_dlg.Destroy()
+
+        self.login_ok = login_dlg.login_ok
+        self.nc = login_dlg.nc
+        self.statusbar.SetStatusText('Connected')
 
     def getIP(self):
         serverIP_str = self.server_address.GetValue()
@@ -129,13 +191,13 @@ class MainWindow(wx.Frame):
         serverIP = self.getIP()
         self.statusbar.SetStatusText('Connecting to %s:%d' % serverIP)
         self.server_connect = network()
-        if self.server_connect.build_connection(serverIP) == False:
-            self.throw_message_box("Unable to connect to %s:%d or it is not a standard chatting server." % serverIP)
-        else:
-            self.login(serverIP)
+        self.login(serverIP)
 
     def disconnect(self, event): # id = 2301, diconnect of GUI layer
-        pass
+        if self.login_ok:
+            self.login_ok = False
+            self.nc.close_connection()
+            self.statusbar.SetStatusText('Disconnected')
 
     def clear_chat_context(self, event): # id = 2400, ccc of GUI layer
         self.chat_context.SetValue('')
