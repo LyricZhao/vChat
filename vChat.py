@@ -256,7 +256,7 @@ class MainWindow(wx.Frame):
         self.chat_context.SetValue('')
 
     def about(self, event): # id = 2500, about of GUI layer
-        throw_message_box("vChat %s" % version, "@ vChat by Lyric Zhao, 2018.01")
+        throw_message_box(self, "vChat %s" % version, "@ vChat by Lyric Zhao, 2018.01")
 
     def send(self, event):
         send_str = str(self.send_context.GetValue())
